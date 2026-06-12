@@ -1,10 +1,13 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const db = require("./config/db");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*"
+}));
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
@@ -20,24 +23,13 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/rentals", rentalRoutes);
 
-app.get("/test", (req, res) => {
-    console.log("ROUTE TEST DIPANGGIL");
-    res.send("TEST BERHASIL");
-});
-
 app.get("/", (req, res) => {
-    res.send("RentTech API Running...");
+  res.send("RentTech API Running...");
 });
 
-app.get("/users", (req, res) => {
-    db.query("SELECT * FROM users", (err, result) => {
-        if (err) return res.json(err);
-        res.json(result);
-    });
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-console.log("ROUTE TEST TERDAFTAR");
-
-app.listen(5000, () => {
-    console.log("TEST 123");
-});
+module.exports = app;
