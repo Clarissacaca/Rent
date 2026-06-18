@@ -158,7 +158,7 @@ export default function Invoice() {
             <div className="inv-header">
               <div>
                 <div className="inv-title">Invoice</div>
-                <div className="inv-id">#{String(rental.id).padStart(6, "0")}</div>
+                <div className="inv-id">#{String(rental._id).slice(-6).toUpperCase()}</div>
               </div>
               <span className={`inv-status ${rental.payment_status}`}>
                 {rental.payment_status === "unpaid" ? "Menunggu Pembayaran" : rental.payment_status === "paid" ? "Lunas" : "Kadaluarsa"}
@@ -167,7 +167,7 @@ export default function Invoice() {
 
             <div className="inv-section">
               <div className="inv-section-title">Detail Produk</div>
-              <div className="inv-row"><span>Produk</span><span>{rental.nama_produk}</span></div>
+              <div className="inv-row"><span>Produk</span><span>{rental.product_id?.nama_produk || "-"}</span></div>
               <div className="inv-row"><span>Tanggal Mulai</span><span>{formatDate(rental.tanggal_mulai)}</span></div>
               <div className="inv-row"><span>Tanggal Selesai</span><span>{formatDate(rental.tanggal_selesai)}</span></div>
               <div className="inv-row"><span>Lokasi Pickup</span><span style={{maxWidth:220, textAlign:"right", fontSize:12}}>{rental.alamat_pickup}</span></div>
@@ -175,7 +175,7 @@ export default function Invoice() {
 
             <div className="inv-section">
               <div className="inv-section-title">Rincian Pembayaran</div>
-              <div className="inv-row"><span>Harga/Hari</span><span>{formatHarga(rental.harga_sewa)}</span></div>
+             <div className="inv-row"><span>Harga/Hari</span><span>{formatHarga(rental.product_id?.harga_sewa)}</span></div>
               <div className="inv-total-row">
                 <span>Total</span>
                 <span>{formatHarga(rental.total_harga)}</span>
@@ -212,7 +212,7 @@ export default function Invoice() {
                   </div>
 
                   <div className="inv-qr-box">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=RENTTECH-PAY-${rental.id}-${rental.total_harga}`} alt="QRIS" />
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=RENTTECH-PAY-${rental._id}-${rental.total_harga}`} alt="QRIS" />
                   </div>
 
                   <p style={{fontSize:12, color:"#4a6380", marginBottom:20}}>

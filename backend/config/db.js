@@ -1,19 +1,23 @@
-require("dotenv").config();
-const mysql = require("mysql2");
+const mongoose = require('mongoose');
+const dns = require('dns');
+require('dotenv').config();
 
-const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
+// paksa Node pakai Google DNS, bypass resolver default yang mungkin diblokir
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
-db.connect((err) => {
-    if (err) {
-        console.log("Database Error:", err);
-    } else {
-        console.log("MySQL Connected");
-    }
-});
+mongoose.set('strictQuery', false);
 
-module.exports = db;
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000,
+      family: 4
+    });
+    console.log('MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;

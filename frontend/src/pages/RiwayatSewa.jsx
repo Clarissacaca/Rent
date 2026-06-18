@@ -6,7 +6,7 @@ export default function RiwayatSewa() {
   const [rentals, setRentals] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const [confirmReturn, setConfirmReturn] = useState(null);
+
 
   const user_id = localStorage.getItem("token")
     ? JSON.parse(atob(localStorage.getItem("token").split(".")[1])).id
@@ -29,15 +29,6 @@ export default function RiwayatSewa() {
     }
   };
 
-  const handleReturnRequest = async (id) => {
-  try {
-    await API.put(`/rentals/${id}/return-request`);
-    setConfirmReturn(null);
-    fetchRentals();
-  } catch (err) {
-    alert(err.response?.data?.message || "Gagal mengajukan pengembalian");
-  }
-};
 
   const formatHarga = (h) => "Rp " + Number(h).toLocaleString("id-ID");
   const formatDate = (d) => new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
@@ -162,13 +153,25 @@ export default function RiwayatSewa() {
             ];
 
             return (
-              <div key={r.id} className="rw-card">
+            <div key={r._id} className="rw-card">
                 <div className="rw-card-top">
                   <div className="rw-card-left">
-                    <div className="rw-card-icon">{r.nama_kategori === "HP" ? "📱" : "📷"}</div>
+                   <div className="rw-card-icon">
+  {r.product_id?.gambar ? (
+    <img 
+      src={`http://localhost:5000/uploads/${Array.isArray(r.product_id.gambar) ? r.product_id.gambar[0] : r.product_id.gambar}`}
+      alt={r.product_id?.nama_produk}
+      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
+      onError={(e) => { e.target.style.display = "none"; }}
+    />
+  ) : (
+    r.product_id?.kategori?.nama_kategori === "HP" ? "📱" : "📷"
+  )}
+</div>
                     <div>
-                      <div className="rw-card-nama">{r.nama_produk}</div>
-                      <div className="rw-card-no">ID Sewa: #{String(r.id).padStart(6, "0")}</div>
+                      <div className="rw-card-nama">{r.product_id?.nama_produk || r.nama_produk || "Produk Dihapus"}</div>
+                     <div className="rw-card-no">ID Sewa: #{String(r._id).slice(-6).toUpperCase()}</div>
+
                     </div>
                   </div>
                   <div className="rw-card-badges">
@@ -252,15 +255,15 @@ export default function RiwayatSewa() {
 
                 <div className="rw-btn-wrap">
                   {r.payment_status === "unpaid" && r.status !== "cancelled" && (
-                    <button className="rw-invoice-btn" onClick={() => navigate(`/invoice/${r.id}`)}>
+                 <button className="rw-invoice-btn" onClick={() => navigate(`/invoice/${r._id}`)}>
                       💳 Lihat Invoice & Bayar
                     </button>
                   )}
-                 {r.status === "ongoing" && (
-                    <button className="rw-return-btn" onClick={() => setConfirmReturn(r.id)}>
-                    ↩ Ajukan Pengembalian
-                    </button>
-                  )}
+                {r.status === "ongoing" && (
+                 <button className="rw-return-btn" onClick={() => navigate(`/pengembalian/${r._id}`)}>
+                  ↩ Kembalikan Perangkat
+                   </button>
+                 )}
                   
                 </div>
               </div>
@@ -269,21 +272,6 @@ export default function RiwayatSewa() {
           </div>
       </div>
 
-      {confirmReturn && (
-        <div style={{position:"fixed", inset:0, background:"#00000090", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
-          <div style={{background:"#040f1e", border:"1px solid #0d2440", borderRadius:16, padding:28, maxWidth:380, position:"relative"}}>
-            <div style={{position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, transparent, #0057ff, #00c6ff, transparent)", borderRadius:"16px 16px 0 0"}} />
-            <h3 style={{fontFamily:"'Syne', sans-serif", fontSize:18, fontWeight:700, marginBottom:10, color:"#fff"}}>Ajukan Pengembalian?</h3>
-            <p style={{fontSize:13, color:"#4a6380", marginBottom:24, lineHeight:1.6}}>
-              Pastikan barang sudah siap dikembalikan. Admin akan memverifikasi kondisi barang setelah pengajuan ini.
-            </p>
-            <div style={{display:"flex", gap:10}}>
-              <button onClick={() => setConfirmReturn(null)} style={{flex:1, padding:11, background:"transparent", border:"1px solid #0d2440", borderRadius:8, color:"#4a6380", fontSize:14, cursor:"pointer", fontFamily:"'DM Sans', sans-serif"}}>Batal</button>
-              <button onClick={() => handleReturnRequest(confirmReturn)} style={{flex:1, padding:11, background:"linear-gradient(135deg, #0057ff, #0099ff)", color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:500, cursor:"pointer", fontFamily:"'DM Sans', sans-serif"}}>Ya, Ajukan</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

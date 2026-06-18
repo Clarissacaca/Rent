@@ -57,7 +57,7 @@ export default function Dashboard() {
         .db-logout:hover { border-color: #ff4444; color: #ff4444; }
         .db-hero { padding: 48px 48px 32px; background: linear-gradient(180deg, #040f1e 0%, #020b18 100%); border-bottom: 1px solid #0d2440; position: relative; overflow: hidden; }
         .db-hero::before { content: ''; position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, #0057ff15, transparent 70%); top: -200px; right: -100px; border-radius: 50%; }
-        .db-hero h1 { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+        .db-hero h1 { font-family: 'Syne', sans-serif; font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
         .db-hero h1 span { background: linear-gradient(135deg, #0057ff, #00c6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .db-hero p { color: #4a6380; font-size: 15px; font-weight: 300; }
         .db-filter { display: flex; gap: 10px; padding: 28px 48px; }
@@ -67,9 +67,10 @@ export default function Dashboard() {
         .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; padding: 0 48px 48px; }
         .db-card { background: #040f1e; border: 1px solid #0d2440; border-radius: 14px; overflow: hidden; transition: all 0.2s; }
         .db-card:hover { border-color: #0057ff; transform: translateY(-4px); box-shadow: 0 12px 30px #0057ff20; }
-        .db-card-img { width: 100%; height: 180px; background: #071525; display: flex; align-items: center; justify-content: center; font-size: 48px; border-bottom: 1px solid #0d2440; }
+        .db-card-img { width: 100%; height: 320px; background: #071525; display: block; align-items: center; justify-content: center; font-size: 48px; border-bottom: 1px solid #0d2440; }
+
         .db-card-body { padding: 18px; }
-        .db-card-kategori { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #0099ff; font-weight: 500; margin-bottom: 6px; }
+        .db-card-kategori { font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #0099ff; font-weight: 500; margin-bottom: 6px; }
         .db-card-nama { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
         .db-card-desc { font-size: 13px; color: #4a6380; font-weight: 300; margin-bottom: 14px; line-height: 1.5; }
         .db-card-footer { display: flex; align-items: center; justify-content: space-between; }
@@ -117,11 +118,11 @@ export default function Dashboard() {
         ) : (
           <div className="db-grid">
             {products.map((p) => (
-              <div key={p.id} className="db-card">
+            <div key={p._id} className="db-card">
                <div className="db-card-img">
   {p.gambar ? (
     <img 
-      src={`${import.meta.env.VITE_API_URL}/uploads/${p.gambar}`} 
+     src={p.gambar}
       alt={p.nama_produk}
       style={{ width: "100%", height: "100%", objectFit: "cover" }}
     />
@@ -140,7 +141,10 @@ export default function Dashboard() {
                         {p.stok > 0 ? `Stok: ${p.stok}` : "Habis"}
                       </span>
                       {p.stok > 0 && (
-                        <button onClick={() => navigate(`/booking/${p.id}`)} style={{padding:"4px 12px", background:"#0057ff", color:"#fff", border:"none", borderRadius:6, fontSize:12, cursor:"pointer"}}>
+                        <button
+                        onClick={() => navigate(`/booking/${p._id}`)}
+                        style={{padding:"4px 12px", background:"#0057ff", color:"#fff", border:"none", borderRadius:6, fontSize:12, cursor:"pointer"}}
+                        >
                           Sewa
                         </button>
                       )}

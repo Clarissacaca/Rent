@@ -7,6 +7,9 @@ import Booking from "./pages/Booking";
 import Invoice from "./pages/Invoice";
 import AdminTransaksi from "./pages/AdminTransaksi";
 import RiwayatSewa from "./pages/RiwayatSewa";
+import Pengembalian from "./pages/Pengembalian";
+
+
 
 
 export default function App() {
@@ -22,6 +25,7 @@ export default function App() {
         <Route path="/invoice/:id" element={<Invoice />} />
         <Route path="/admin/transaksi" element={<AdminTransaksi />} />
         <Route path="/riwayat" element={<RiwayatSewa />} />
+        <Route path="/pengembalian/:id" element={<Pengembalian />} />
       </Routes>
     </BrowserRouter>
   );

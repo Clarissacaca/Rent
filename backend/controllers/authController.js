@@ -1,83 +1,77 @@
-const db = require("../config/db");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const User = require('../models/User');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-exports.register = async (req, res) => {
+// REGISTER
+const register = async (req, res) => {
+  try {
+    const { nama, email, password, no_hp, alamat } = req.body;
 
-    const { nama, email, password } = req.body;
-
-    try {
-
-        const hashPassword =
-            await bcrypt.hash(password, 10);
-
-        db.query(
-            "INSERT INTO users (nama,email,password) VALUES (?,?,?)",
-            [nama, email, hashPassword],
-            (err, result) => {
-
-                if (err)
-                    return res.status(500).json(err);
-
-                res.json({
-                    message: "Register berhasil"
-                });
-
-            }
-        );
-
-    } catch (error) {
-        res.status(500).json(error);
+    // Cek email sudah ada atau belum
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email sudah terdaftar' });
     }
+
+    // Enkripsi password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Buat user baru
+    const user = new User({
+      nama,
+      email,
+      password: hashedPassword,
+      no_hp,
+      alamat
+    });
+
+    await user.save();
+    res.status(201).json({ message: 'Registrasi berhasil' });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
-exports.login = (req, res) => {
-
+// LOGIN
+const login = async (req, res) => {
+  try {
     const { email, password } = req.body;
 
-    db.query(
-        "SELECT * FROM users WHERE email=?",
-        [email],
-        async (err, result) => {
+    // Cek user ada atau tidak
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Email atau password salah' });
+    }
 
-            if (err)
-                return res.status(500).json(err);
+    // Cek password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Email atau password salah' });
+    }
 
-            if (result.length === 0)
-                return res.status(404).json({
-                    message: "User tidak ditemukan"
-                });
-
-            const user = result[0];
-
-            const match =
-                await bcrypt.compare(
-                    password,
-                    user.password
-                );
-
-            if (!match)
-                return res.status(400).json({
-                    message: "Password salah"
-                });
-
-            const token = jwt.sign(
-                {
-                    id: user.id,
-                    role: user.role
-                },
-                "RENTTECH_SECRET",
-                {
-                    expiresIn: "1d"
-                }
-            );
-
-            res.json({
-                token,
-                role: user.role,
-                nama: user.nama
-            });
-
-        }
+    // Buat token JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
     );
+
+    res.json({
+      message: 'Login berhasil',
+      token,
+      user: {
+        id: user._id,
+        nama: user.nama,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
+
+module.exports = { register, login };

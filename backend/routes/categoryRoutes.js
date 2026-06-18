@@ -1,12 +1,17 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const db = require("../config/db");
+const {
+  getAllCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} = require('../controllers/categoryController');
 
-router.get("/", (req, res) => {
-  db.query("SELECT * FROM categories", (err, result) => {
-    if (err) return res.status(500).json(err);
-    res.json(result);
-  });
-});
+router.get('/', getAllCategories);
+router.get('/:id', getCategoryById);
+router.post('/', createCategory);
+router.put('/:id', updateCategory);
+router.delete('/:id', deleteCategory);
 
 module.exports = router;

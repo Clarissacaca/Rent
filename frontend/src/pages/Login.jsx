@@ -16,9 +16,9 @@ export default function Login() {
     try {
       const res = await API.post("/auth/login", form);
       localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.role);
-      localStorage.setItem("nama", res.data.nama);
-      const role = res.data.role;
+localStorage.setItem("role", res.data.user.role);
+localStorage.setItem("nama", res.data.user.nama);
+const role = res.data.user.role;
         if (role === "admin") navigate("/admin");
         else navigate("/dashboard");
     } catch (err) {

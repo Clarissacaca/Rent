@@ -9,15 +9,9 @@ export default function AdminTransaksi() {
   const [modalKembali, setModalKembali] = useState(null);
   const [kondisi, setKondisi] = useState("baik");
   const [catatan, setCatatan] = useState("");
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [detailModal, setDetailModal] = useState(null);
   const navigate = useNavigate();
-
-  const confirmPayment = async (id) => {
-  if (!confirm("Konfirmasi pembayaran sudah diterima?")) return;
-  try {
-    await API.put(`/admin/transactions/${id}/confirm-payment`);
-    fetchTransactions();
-  } catch (err) { console.error(err); }
-};
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -44,17 +38,35 @@ export default function AdminTransaksi() {
     } catch (err) { console.error(err); }
   };
 
-  const handleAmbil = async (id) => {
-    if (!confirm("Konfirmasi barang sudah diambil?")) return;
+  const confirmPayment = (id) => {
+    setConfirmModal({ type: "payment", id, message: "Konfirmasi pembayaran sudah diterima?" });
+  };
+
+  const handleAmbil = (id) => {
+    setConfirmModal({ type: "ambil", id, message: "Konfirmasi barang sudah diambil oleh penyewa?" });
+  };
+
+  const handleDelete = (id) => {
+    setConfirmModal({ type: "delete", id, message: "Hapus transaksi ini secara permanen? Data tidak bisa dikembalikan." });
+  };
+
+  const handleConfirmModal = async () => {
     try {
-      await API.put(`/admin/transactions/${id}/ambil`);
+      if (confirmModal.type === "payment") {
+        await API.put(`/admin/transactions/${confirmModal.id}/confirm-payment`);
+      } else if (confirmModal.type === "ambil") {
+        await API.put(`/admin/transactions/${confirmModal.id}/ambil`);
+      } else if (confirmModal.type === "delete") {
+        await API.delete(`/admin/transactions/${confirmModal.id}`);
+      }
+      setConfirmModal(null);
       fetchTransactions();
     } catch (err) { console.error(err); }
   };
 
   const handleKembali = async () => {
     try {
-      await API.put(`/admin/transactions/${modalKembali.id}/kembali`, { kondisi_kembali: kondisi, catatan });
+     await API.put(`/admin/transactions/${modalKembali._id}/kembali`, { kondisi_kembali: kondisi, catatan });
       setModalKembali(null);
       setCatatan("");
       setKondisi("baik");
@@ -88,6 +100,146 @@ export default function AdminTransaksi() {
     return status;
   };
 
+  // Fungsi cetak invoice
+ const handleCetakInvoice = (t) => {
+  const isPaid = t.payment_status === "paid";
+
+  const namaPenyewa = t.nama_penyewa || t.user_id?.nama;
+  const email = t.user_id?.email;
+  const namaProduk = t.product_id?.nama_produk || "Produk Dihapus";
+  const namaKategori = t.product_id?.kategori?.nama_kategori || "-";
+  const noInvoice = String(t._id).slice(-6).toUpperCase();
+
+  const win = window.open("", "_blank");
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Invoice #${noInvoice} - RentTech</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap');
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'DM Sans', sans-serif; background: #fff; color: #1a1a2e; padding: 40px; max-width: 600px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #e8f0fe; }
+          .brand { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+          .brand span { color: #0057ff; }
+          .invoice-no { text-align: right; }
+          .invoice-no h2 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+          .invoice-no p { font-size: 12px; color: #6b7280; margin-top: 4px; }
+          .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #0057ff; font-weight: 600; margin: 24px 0 12px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+          .info-box { background: #f8faff; border: 1px solid #e8f0fe; border-radius: 10px; padding: 14px 16px; }
+          .info-box .label { font-size: 11px; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .info-box .val { font-size: 14px; color: #1a1a2e; font-weight: 500; line-height: 1.5; }
+          .produk-box { background: #f0f6ff; border: 1px solid #c7deff; border-radius: 10px; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+          .produk-box .nama { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+          .produk-box .kat { font-size: 12px; color: #0057ff; margin-top: 2px; }
+          .produk-box .harga { font-size: 13px; color: #6b7280; }
+          .total-box { margin-top: 20px; border: 2px solid #0057ff20; border-radius: 12px; overflow: hidden; }
+          .total-row { display: flex; justify-content: space-between; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #e8f0fe; }
+          .total-row:last-child { border-bottom: none; }
+          .total-row.grand { background: #0057ff; color: #fff; font-size: 16px; font-weight: 700; }
+          .total-row .label { color: inherit; }
+          .total-row .val { font-weight: 600; }
+          .status-lunas { text-align: center; margin: 20px 0; padding: 10px; background: #00c27615; border: 2px solid #00c27640; border-radius: 8px; color: #00a86b; font-size: 18px; font-weight: 700; letter-spacing: 2px; }
+          .status-belum { text-align: center; margin: 20px 0; padding: 10px; background: #ff990015; border: 2px solid #ff990040; border-radius: 8px; color: #ff8800; font-size: 18px; font-weight: 700; letter-spacing: 2px; }
+          .lokasi-box { background: #f8faff; border: 1px solid #e8f0fe; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+          .lokasi-box .label { font-size: 11px; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
+          .lokasi-box .val { font-size: 13px; color: #1a1a2e; line-height: 1.5; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e8f0fe; text-align: center; font-size: 12px; color: #9ca3af; }
+          @media print {
+            body { padding: 20px; }
+            button { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="brand">Rent<span>Tech</span></div>
+          <div class="invoice-no">
+            <h2>INVOICE</h2>
+            <p>#${noInvoice}</p>
+            <p style="margin-top:2px">${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+          </div>
+        </div>
+
+        <div class="section-title">Data Penyewa</div>
+        <div class="info-grid">
+          <div class="info-box">
+            <div class="label">Nama Lengkap</div>
+           <div class="val">${namaPenyewa}</div>
+          </div>
+          <div class="info-box">
+            <div class="label">Email</div>
+           <div class="val">${email}</div>
+          </div>
+          ${t.no_telp ? `
+          <div class="info-box">
+            <div class="label">No. Telepon</div>
+            <div class="val">${t.no_telp}</div>
+          </div>` : ""}
+        </div>
+
+        <div class="section-title">Detail Produk</div>
+        <div class="produk-box">
+          <div>
+            <div class="nama">${namaProduk}</div>
+            <div class="kat">${namaKategori}</div>
+          </div>
+          <div class="harga">${formatDate(t.tanggal_mulai)} → ${formatDate(t.tanggal_selesai)}</div>
+        </div>
+
+        <div class="total-box" style="margin-top:16px">
+          <div class="total-row">
+            <span class="label">Tanggal Mulai</span>
+            <span class="val">${formatDate(t.tanggal_mulai)}</span>
+          </div>
+          <div class="total-row">
+            <span class="label">Tanggal Selesai</span>
+            <span class="val">${formatDate(t.tanggal_selesai)}</span>
+          </div>
+          <div class="total-row">
+            <span class="label">Status Pembayaran</span>
+            <span class="val">${t.payment_status === "paid" ? "Lunas" : "Belum Lunas"}</span>
+          </div>
+          <div class="total-row grand">
+            <span class="label">Total Pembayaran</span>
+            <span class="val">${formatHarga(t.total_harga)}</span>
+          </div>
+        </div>
+
+        <div class="${isPaid ? "status-lunas" : "status-belum"}">
+          ${isPaid ? "✓ LUNAS" : "⏳ BELUM LUNAS"}
+        </div>
+
+        <div class="section-title">Lokasi</div>
+        <div class="lokasi-box">
+          <div class="label">📍 Lokasi Pickup</div>
+          <div class="val">${t.alamat_pickup || "-"}</div>
+        </div>
+        ${t.alamat_kembali ? `
+        <div class="lokasi-box">
+          <div class="label">📍 Lokasi Pengembalian</div>
+          <div class="val">${t.alamat_kembali}</div>
+        </div>` : ""}
+
+        <div class="footer">
+          <p>Terima kasih telah menggunakan layanan <strong>RentTech</strong></p>
+          <p style="margin-top:4px">Dokumen ini dicetak pada ${new Date().toLocaleString("id-ID")}</p>
+        </div>
+
+        <div style="text-align:center; margin-top:24px">
+          <button onclick="window.print()" style="padding:10px 28px; background:#0057ff; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-family:'DM Sans',sans-serif;">
+            🖨 Cetak
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   return (
     <>
       <style>{`
@@ -97,7 +249,7 @@ export default function AdminTransaksi() {
         .at-root { min-height: 100vh; background: #020b18; font-family: 'DM Sans', sans-serif; color: #fff; }
         .at-nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 48px; background: #040f1e; border-bottom: 1px solid #0d2440; position: sticky; top: 0; z-index: 100; }
         .at-nav-left { display: flex; align-items: center; gap: 16px; }
-        .at-brand { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; cursor: pointer; }
+        .at-brand { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; cursor: pointer; }
         .at-brand span { color: #0057ff; }
         .at-badge { background: #0057ff20; border: 1px solid #0057ff40; color: #0099ff; font-size: 11px; padding: 3px 10px; border-radius: 20px; }
         .at-nav-tabs { display: flex; gap: 4px; }
@@ -126,6 +278,7 @@ export default function AdminTransaksi() {
         .at-no { font-family: 'Syne', sans-serif; font-size: 13px; color: #4a6380; }
         .at-user { font-weight: 500; color: #fff; margin-bottom: 2px; }
         .at-email { font-size: 11px; color: #4a6380; }
+        .at-telp { font-size: 11px; color: #0099ff; margin-top: 2px; }
         .at-produk { font-weight: 500; color: #fff; margin-bottom: 2px; }
         .at-kat { font-size: 11px; }
         .at-kat.hp { color: #0099ff; }
@@ -148,7 +301,12 @@ export default function AdminTransaksi() {
         .at-btn-kembali:hover { background: #7c3aed40; }
         .at-btn-konfirmasi { background: #f59e0b20; border-color: #f59e0b40; color: #f59e0b; }
         .at-btn-konfirmasi:hover { background: #f59e0b40; }
+        .at-btn-detail { background: #071525; border-color: #0d2440; color: #4a6380; }
+        .at-btn-detail:hover { border-color: #0057ff; color: #0099ff; }
+        .at-btn-hapus { background: #ff444420; border-color: #ff444440; color: #ff6b6b; }
+        .at-btn-hapus:hover { background: #ff444440; }
         .at-datetime { font-size: 11px; color: #4a6380; margin-top: 2px; }
+        .at-loc { font-size: 11px; color: #2a4060; margin-top: 3px; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .at-kondisi { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
         .at-kondisi.baik { background: #00c6ff15; color: #00c6ff; }
         .at-kondisi.rusak { background: #ff990015; color: #ffaa00; }
@@ -156,7 +314,7 @@ export default function AdminTransaksi() {
         .at-loading { text-align: center; padding: 80px; color: #4a6380; }
         .at-empty { text-align: center; padding: 60px; color: #4a6380; }
         .at-overlay { position: fixed; inset: 0; background: #00000080; z-index: 200; display: flex; align-items: center; justify-content: center; }
-        .at-modal { background: #040f1e; border: 1px solid #0d2440; border-radius: 16px; padding: 32px; width: 440px; position: relative; }
+        .at-modal { background: #040f1e; border: 1px solid #0d2440; border-radius: 16px; padding: 32px; width: 440px; position: relative; max-height: 90vh; overflow-y: auto; }
         .at-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #0057ff, #00c6ff, transparent); border-radius: 16px 16px 0 0; }
         .at-modal h3 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 20px; }
         .at-modal-field { margin-bottom: 16px; }
@@ -168,13 +326,23 @@ export default function AdminTransaksi() {
         .at-modal-save { flex: 1; padding: 12px; background: linear-gradient(135deg, #0057ff, #0099ff); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; }
         .at-modal-cancel { padding: 12px 20px; background: transparent; border: 1px solid #0d2440; border-radius: 8px; color: #4a6380; font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
         .at-modal-cancel:hover { border-color: #ff4444; color: #ff4444; }
+        .at-detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #071525; font-size: 13px; gap: 16px; }
+        .at-detail-row:last-child { border-bottom: none; }
+        .at-detail-label { color: #4a6380; flex-shrink: 0; }
+        .at-detail-val { color: #fff; text-align: right; line-height: 1.5; }
+        .at-detail-section { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: #0099ff; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .at-lunas-stamp { text-align: center; margin: 16px 0; padding: 8px; background: #00c27615; border: 2px solid #00c27640; border-radius: 8px; color: #00c276; font-size: 16px; font-weight: 700; letter-spacing: 3px; }
+        .at-belum-stamp { text-align: center; margin: 16px 0; padding: 8px; background: #ff990015; border: 2px solid #ff990040; border-radius: 8px; color: #ffaa00; font-size: 16px; font-weight: 700; letter-spacing: 3px; }
+        .at-btn-print { flex: 1; padding: 12px; background: transparent; border: 1px solid #0057ff40; border-radius: 8px; color: #0099ff; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .at-btn-print:hover { background: #0057ff20; }
       `}</style>
 
       <div className="at-root">
         <nav className="at-nav">
           <div className="at-nav-left">
-            <div className="at-brand" onClick={() => navigate("/admin")}>Rent<span>Tech</span></div>
-            <span className="at-badge">Admin</span>
+            <div className="at-brand">
+             Admin Rent<span>Tech</span>
+            </div>
             <div className="at-nav-tabs">
               <button className="at-tab" onClick={() => navigate("/admin")}>Produk</button>
               <button className="at-tab active">Transaksi</button>
@@ -240,19 +408,22 @@ export default function AdminTransaksi() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((t) => {
+                {filtered.map((t, i) => {
                   const sc = getStatusColor(t.status);
-                  return (
-                    <tr key={t.id}>
-                      <td className="at-no">#{String(t.id).padStart(4, "0")}</td>
-                      <td>
-                        <div className="at-user">{t.nama_user}</div>
-                        <div className="at-email">{t.email}</div>
-                      </td>
-                      <td>
-                        <div className="at-produk">{t.nama_produk}</div>
-                        <div className={`at-kat ${t.nama_kategori === "HP" ? "hp" : "kamera"}`}>{t.nama_kategori}</div>
-                      </td>
+                   return (
+                    <tr key={t._id}>
+                    <td className="at-no">#{String(i + 1).padStart(4, "0")}</td>
+                    <td>
+                    <div className="at-user">{t.nama_penyewa || t.user_id?.nama}</div>
+                    <div className="at-email">{t.user_id?.email}</div>
+                    {t.no_telp && <div className="at-telp">📞 {t.no_telp}</div>}
+                  </td>
+                  <td>
+                  <div className="at-produk">{t.product_id?.nama_produk || "Produk Dihapus"}</div>
+                    <div className={`at-kat ${t.product_id?.kategori?.nama_kategori === "HP" ? "hp" : "kamera"}`}>
+                      {t.product_id?.kategori?.nama_kategori}
+                    </div>
+                    </td>
                       <td>
                         <div className="at-date">
                           {formatDate(t.tanggal_mulai)}
@@ -261,26 +432,22 @@ export default function AdminTransaksi() {
                         </div>
                       </td>
                       <td className="at-harga">{formatHarga(t.total_harga)}</td>
-                     <td>
-                       <span className={`at-pay-badge ${t.payment_status}`}>
-                        {t.payment_status === "unpaid" ? "Belum Lunas" : t.payment_status === "paid" ? "Lunas" : "Kadaluarsa"}
-                      </span>
-                      {t.bukti_bayar && t.payment_status === "unpaid" && (
-                        <div style={{marginTop:6, display:"flex", flexDirection:"column", gap:4}}>
-                        <a href={`${import.meta.env.VITE_API_URL}/uploads/${t.bukti_bayar}`} target="_blank" rel="noreferrer" style={{fontSize:11, color:"#0099ff"}}>
-                         🖼 Lihat Bukti
-                         </a>
-                       <button className="at-btn at-btn-ambil" onClick={() => confirmPayment(t.id)}>✓ Konfirmasi Lunas</button>
-                        </div>
-                      )}
+                      <td>
+                        <span className={`at-pay-badge ${t.payment_status}`}>
+                          {t.payment_status === "unpaid" ? "Belum Lunas" : t.payment_status === "paid" ? "Lunas" : "Kadaluarsa"}
+                        </span>
+                        {t.bukti_bayar && t.payment_status === "unpaid" && (
+                          <div style={{marginTop:6, display:"flex", flexDirection:"column", gap:4}}>
+                            <a href={t.bukti_bayar} target="_blank" rel="noreferrer" style={{fontSize:11, color:"#0099ff"}}>
+                              🖼 Lihat Bukti
+                            </a>
+                            <button className="at-btn at-btn-ambil" onClick={() => confirmPayment(t._id)}>✓ Konfirmasi Lunas</button>
+                          </div>
+                        )}
                       </td>
                       <td>
                         {["pending", "approved"].includes(t.status) ? (
-                          <select
-                            className="at-status-select"
-                            value={t.status}
-                            onChange={(e) => updateStatus(t.id, e.target.value)}
-                          >
+                          <select className="at-status-select" value={t.status} onChange={(e) => updateStatus(t._id, e.target.value)}>
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
                             <option value="cancelled">Cancelled</option>
@@ -292,22 +459,36 @@ export default function AdminTransaksi() {
                         )}
                       </td>
                       <td>
-                        {t.tanggal_pengambilan ? (
+                         {t.tanggal_pengambilan ? (
+                         <>
                           <div className="at-datetime">{formatDateTime(t.tanggal_pengambilan)}</div>
-                        ) : <span style={{color:"#4a6380", fontSize:12}}>-</span>}
-                      </td>
+                            {t.alamat_pickup && <div className="at-loc" title={t.alamat_pickup}>📍 {t.alamat_pickup}</div>}
+                            </>
+                            ) : (
+                             <>
+                            {t.alamat_pickup && <div className="at-loc" title={t.alamat_pickup}>📍 {t.alamat_pickup}</div>}
+                            {!t.alamat_pickup && <span style={{color:"#4a6380", fontSize:12}}>-</span>}
+                            </>
+                            )}
+                        </td>
                       <td>
                         {t.tanggal_pengembalian_aktual ? (
-                          <div>
+                          <>
                             <div className="at-datetime">{formatDateTime(t.tanggal_pengembalian_aktual)}</div>
                             {t.kondisi_kembali && <span className={`at-kondisi ${t.kondisi_kembali}`}>{t.kondisi_kembali}</span>}
-                          </div>
+                            {t.alamat_kembali && <div className="at-loc" title={t.alamat_kembali}>📍 {t.alamat_kembali}</div>}
+                          </>
+                        ) : t.status === "return_requested" && t.tanggal_kembali ? (
+                          <>
+                            <div className="at-datetime">{formatDateTime(t.tanggal_kembali)}</div>
+                            {t.alamat_kembali && <div className="at-loc" title={t.alamat_kembali}>📍 {t.alamat_kembali}</div>}
+                          </>
                         ) : <span style={{color:"#4a6380", fontSize:12}}>-</span>}
                       </td>
                       <td>
                         <div className="at-actions">
                           {t.status === "approved" && !t.tanggal_pengambilan && (
-                            <button className="at-btn at-btn-ambil" onClick={() => handleAmbil(t.id)}>✓ Diambil</button>
+                            <button className="at-btn at-btn-ambil" onClick={() => handleAmbil(t._id)}>✓ Diambil</button>
                           )}
                           {t.status === "ongoing" && !t.tanggal_pengembalian_aktual && (
                             <button className="at-btn at-btn-kembali" onClick={() => setModalKembali(t)}>↩ Dikembalikan</button>
@@ -315,6 +496,8 @@ export default function AdminTransaksi() {
                           {t.status === "return_requested" && (
                             <button className="at-btn at-btn-konfirmasi" onClick={() => setModalKembali(t)}>⚠ Konfirmasi Kembali</button>
                           )}
+                          <button className="at-btn at-btn-detail" onClick={() => setDetailModal(t)}>Detail</button>
+                          <button className="at-btn at-btn-hapus" onClick={() => handleDelete(t._id)}>Hapus</button>
                         </div>
                       </td>
                     </tr>
@@ -326,13 +509,33 @@ export default function AdminTransaksi() {
         </div>
       </div>
 
+      {/* Modal Konfirmasi */}
+      {confirmModal && (
+        <div className="at-overlay">
+          <div className="at-modal" style={{width:360}}>
+            <h3>Konfirmasi</h3>
+            <p style={{color:"#4a6380", fontSize:14, marginBottom:24}}>{confirmModal.message}</p>
+            <div className="at-modal-footer">
+              <button className="at-modal-cancel" onClick={() => setConfirmModal(null)}>Batal</button>
+              <button className="at-modal-save" onClick={handleConfirmModal}>Ya, Konfirmasi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pengembalian */}
       {modalKembali && (
         <div className="at-overlay">
           <div className="at-modal">
             <h3>Catat Pengembalian</h3>
-            <p style={{fontSize:13, color:"#4a6380", marginBottom:20}}>
-              {modalKembali.nama_produk} — {modalKembali.nama_user}
-            </p>
+            <p style={{fontSize:13, color:"#4a6380", marginBottom:8}}>
+              {modalKembali.product_id?.nama_produk} — {modalKembali.nama_penyewa || modalKembali.user_id?.nama}
+          </p>
+            {modalKembali.alamat_kembali && (
+              <div style={{background:"#071525", border:"1px solid #0d2440", borderRadius:8, padding:"10px 12px", fontSize:12, color:"#0099ff", marginBottom:16, lineHeight:1.5}}>
+                📍 Lokasi pengembalian: {modalKembali.alamat_kembali}
+              </div>
+            )}
             <div className="at-modal-field">
               <label>Kondisi Barang</label>
               <select value={kondisi} onChange={(e) => setKondisi(e.target.value)}>
@@ -348,6 +551,89 @@ export default function AdminTransaksi() {
             <div className="at-modal-footer">
               <button className="at-modal-cancel" onClick={() => setModalKembali(null)}>Batal</button>
               <button className="at-modal-save" onClick={handleKembali}>Simpan Pengembalian</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detail Transaksi */}
+      {detailModal && (
+        <div className="at-overlay">
+          <div className="at-modal" style={{width:480}}>
+            <h3>Detail Transaksi #{String(detailModal._id).slice(-6).toUpperCase()}</h3>
+
+            <div className="at-detail-section">Data Penyewa</div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Nama</span>
+              <span className="at-detail-val">{detailModal.nama_penyewa || detailModal.user_id?.nama}</span>
+            </div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Email</span>
+              <span className="at-detail-val">{detailModal.user_id?.email}</span>
+            </div>
+            {detailModal.no_telp && (
+              <div className="at-detail-row">
+                <span className="at-detail-label">No. Telepon</span>
+                <span className="at-detail-val">{detailModal.no_telp}</span>
+              </div>
+            )}
+
+            <div className="at-detail-section">Data Sewa</div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Produk</span>
+             <span className="at-detail-val">{detailModal.product_id?.nama_produk || "Produk Dihapus"}</span>
+            </div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Tanggal Sewa</span>
+              <span className="at-detail-val">{formatDate(detailModal.tanggal_mulai)} → {formatDate(detailModal.tanggal_selesai)}</span>
+            </div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Total</span>
+              <span className="at-detail-val" style={{color:"#0099ff"}}>{formatHarga(detailModal.total_harga)}</span>
+            </div>
+
+            {/* Stamp LUNAS / BELUM LUNAS */}
+            <div className={detailModal.payment_status === "paid" ? "at-lunas-stamp" : "at-belum-stamp"}>
+              {detailModal.payment_status === "paid" ? "✓ LUNAS" : "⏳ BELUM LUNAS"}
+            </div>
+
+            <div className="at-detail-section">Lokasi</div>
+            <div className="at-detail-row">
+              <span className="at-detail-label">Lokasi Pickup</span>
+              <span className="at-detail-val">{detailModal.alamat_pickup || "-"}</span>
+            </div>
+            {detailModal.alamat_kembali && (
+              <div className="at-detail-row">
+                <span className="at-detail-label">Lokasi Kembali</span>
+                <span className="at-detail-val">{detailModal.alamat_kembali}</span>
+              </div>
+            )}
+
+            {detailModal.tanggal_pengambilan && (
+              <>
+                <div className="at-detail-section">Timeline</div>
+                <div className="at-detail-row">
+                  <span className="at-detail-label">Diambil</span>
+                  <span className="at-detail-val">{formatDateTime(detailModal.tanggal_pengambilan)}</span>
+                </div>
+                {detailModal.tanggal_pengembalian_aktual && (
+                  <div className="at-detail-row">
+                    <span className="at-detail-label">Dikembalikan</span>
+                    <span className="at-detail-val">{formatDateTime(detailModal.tanggal_pengembalian_aktual)}</span>
+                  </div>
+                )}
+                {detailModal.kondisi_kembali && (
+                  <div className="at-detail-row">
+                    <span className="at-detail-label">Kondisi</span>
+                    <span className={`at-kondisi ${detailModal.kondisi_kembali}`}>{detailModal.kondisi_kembali}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="at-modal-footer">
+              <button className="at-btn-print" onClick={() => handleCetakInvoice(detailModal)}>🖨 Cetak Invoice</button>
+              <button className="at-modal-save" onClick={() => setDetailModal(null)}>Tutup</button>
             </div>
           </div>
         </div>
